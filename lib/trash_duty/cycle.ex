@@ -8,7 +8,6 @@ defmodule TrashDuty.Cycle do
 
     ok_profiles = profiles_available
     |> Enum.filter( fn(profile) -> Enum.member?(users, profile["id"]) end)
-    # |> Enum.map(&add_user(&1, changes))
 
     add_user_loop(ok_profiles, changes)
   end
@@ -24,6 +23,9 @@ defmodule TrashDuty.Cycle do
     Map.put_new(changes, id, email)
   end
 
+  def remove_user(users_list, current_cycle) do
+    Map.drop(current_cycle, users_list)
+  end
 
   def add_user(user, changes) do
     Logger.warn("User not complete (maybe a bot) #{inspect(user["real_name"])}")

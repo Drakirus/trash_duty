@@ -19,20 +19,39 @@ defmodule TrashDuty.Slack do
   def handle_event(message = %{type: "message"}, slack, state) do
     if is_direct_message?(message, slack) do
 
+      # send_message("coucou", "#trash", slack)
+      IO.inspect slack
+
       case Parser.parse(message) do
-        { :help, _ } -> Formatter.help_message(message.user)
-                         |> send_message(message.channel, slack)
+        { :help, _ } ->
+          Formatter.help_message(message.user)
+          |> send_message(message.channel, slack)
 
         { :add, users } ->
           current_cycle = Store.get
           profiles_available = Slack.Web.Users.list(%{token: slack.token})
           new_cycle = Cycle.add_user(users, profiles_available, current_cycle)
+
+          send_message(":loudspeaker: <@#{message.user}> has `joined` to the cycle", message.channel, slack)
+
           Store.set(new_cycle)
 
-        { :list, _ } -> Store.get |> Formatter.list_message() |> send_message(message.channel, slack)
+        { :remove, users } ->
+          current_cycle = Store.get
+          new_cycle = Cycle.remove_user(users, current_cycle)
+          Store.set(new_cycle)
 
-        { :not_a_command, _ } -> Formatter.not_a_command_message
-                                  |> send_message(message.channel, slack)
+          send_message(":loudspeaker: <@#{message.user}> has `quit` to the cycle :wave:", message.channel, slack)
+
+        { :list, _ } ->
+          Store.get
+          # |> ids_to_users_names(slack)
+          |> Formatter.list_message()
+          |> send_message(message.channel, slack)
+
+        { :not_a_command, _ } ->
+          Formatter.not_a_command_message
+          |> send_message(message.channel, slack)
       end
 
     end
@@ -50,6 +69,19 @@ defmodule TrashDuty.Slack do
 
   def handle_info(_, _, state), do: {:ok, state}
 
+  defp ids_to_users_names(list, slack) do
+    Slack.Web.Users.list(%{token: slack.token})
+    |> Map.get("members")
+    |> Enum.filter(&user_in_list?(list, &1))
+    |> Enum.map(&get_display_name(&1))
+  end
+
+  defp user_in_list?(list, user), do: Map.has_key?(list, user["id"])
+
+  defp get_display_name(users_list) do
+    users_list["profile"]["display_name"]
+  end
+
   defp is_direct_message?(%{channel: channel}, slack), do: Map.has_key? slack.ims, channel
 
 end
@@ -57,24 +89,10 @@ end
 
 # iex(2)> Supervisor.which_children(TrashDuty.Supervisor)
 # [{Slack.Bot, #PID<0.188.0>, :worker, [Slack.Bot]}]
-# iex(3)> send(IEx.Helpers.pid("0.188.0"), {:message, "External message", "#trash"})
+# iex(3)> send(IEx.Helpers.pid("0.193.0"), {:message, "External message", "C74B102BV"})
 # Sending your message, captain!
 # {:message, "External message", "#trash"}
 
 
 # {:ok, rtm} = Slack.Bot.start_link(Slack, [], "xoxb-242502268980-Y7LsDz3Przax1FdxIsehIFL2")
 # send rtm, {:message, "External message", "#trash"}
-
-# Slack.Web.Users.info("U74H4MAKX",%{token: "xoxb-242502268980-Y7LsDz3Przax1FdxIsehIFL2"})
-
-# names = Slack.Web.Users.list(%{token: "xoxb-242502268980-Y7LsDz3Przax1FdxIsehIFL2"})
-# names |> Map.get("members") |> Enum.map(fn(m) -> m["real_name"]end)
-# names |> Map.get("members") |> Enum.map(fn(m) -> {m["id"], m["real_name"]} end) |> Map.new
-
-
-# Slack.Web.Channels.list(%{token: "xoxb-242502268980-Y7LsDz3Przax1FdxIsehIFL2"}) |> Map.get("channels") |> Enum.filter(fn(chan) -> chan["name"] == "trash" end) |> Enum.map(fn(chan) -> {chan["id"], chan["members"]} end) |> Map.new
-
-# Slack.Web.Channels.kick("C74B102BV", "U74H4MAKX", %{token: "xoxp-242442904978-242582724677-243018339858-7c7b65ab3574a4e7addf1cc24798d3d8"})
-
-
-# Slack.Web.Channels.create("testPierre", %{token: "xoxp-242442904978-242582724677-243018339858-7c7b65ab3574a4e7addf1cc24798d3d8"})

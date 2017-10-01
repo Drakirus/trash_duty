@@ -2,15 +2,13 @@ defmodule TrashDuty.Formatter do
 
   def help_message(user) do
     """
-    ```
-    Usage:
-      - add: add <@#{user}> to the trash duty cycle
-      - add [List of user]: add [List of user] to the trash duty cycle
-      - remove: remove <@#{user}> to the trash duty cycle
-      - remove [List of user]: remove [List of user] to the trash duty cycle
-      - help: Prints this message
-      - list: List the TrashDuty Users cycle
-    ```
+    *Usage*:
+      - `add` -> add yourself to the list
+      - `add [List of user]` ->  add multiple user
+      - `remove`
+      - `remove [List of user]`
+      - `help`: Prints this message
+      - `list`: List the cuurent users added
     """
   end
 
@@ -20,13 +18,17 @@ defmodule TrashDuty.Formatter do
     """
   end
 
+  def list_message([]) do
+    "*No User* :sweat_smile:"
+  end
+
   def list_message(list) do
-    list = %{"p.champion" => "p.champion", "p.addd" => "p.addd","p.coucou" => "p.coucou","p.zzz" => "p.zzz"}
     """
     *Users*
     #{Enum.map(list, fn({id, _}) ->
-      "  • #{id}\n"
+      "  • <@#{id}>\n"
     end)}
     """
   end
+
 end
