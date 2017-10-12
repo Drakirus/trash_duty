@@ -1,12 +1,12 @@
 # TrashDuty
 
-First try at a real world project made in Elixir and functional programing.  
+First try at a real world project made in `Elixir` and functional programing.  
 
 Used to alert a **Slack** user of a list when it is there turn to take the trash out
 
 [Config example](config/config.exs)
 
-> Note the list skip to the next user based on the cmp_email fonction [here](lib/trash_duty/cycle.ex)
+> Note the list skip to the next user based on the cmp_email fonction [here](https://github.com/Drakirus/trash_duty/blob/e65de79865a63b78c56c5fdc3b40373005e07eee/lib/trash_duty/cycle.ex#L71-L75)
 
 *Usage*:
  - `add` -> add yourself to the list
