@@ -19,35 +19,87 @@ defmodule TrashDuty.Slack do
   def handle_event(message = %{type: "message"}, slack, state) do
     if is_direct_message?(message, slack) do
 
-      # send_message("coucou", "#trash", slack)
-      IO.inspect slack
-
       case Parser.parse(message) do
         { :help, _ } ->
-          Formatter.help_message(message.user)
+          Formatter.help_message()
           |> send_message(message.channel, slack)
 
         { :add, users } ->
-          current_cycle = Store.get
+          old_cycle = Store.get_users
           profiles_available = Slack.Web.Users.list(%{token: slack.token})
-          new_cycle = Cycle.add_user(users, profiles_available, current_cycle)
+          new_cycle = Cycle.add_users(users, profiles_available, old_cycle)
 
-          send_message(":loudspeaker: <@#{message.user}> has `joined` to the cycle", message.channel, slack)
+          if Map.equal?(old_cycle, new_cycle) do
 
-          Store.set(new_cycle)
+            send_message(Formatter.nothing_change_message, message.channel, slack)
+          else
+
+            broadcast_users(
+              "#{Formatter.inline_list_user(users)} `joined` to the cycle",
+              Map.put_new(new_cycle, message.user, ""),
+              slack)
+
+              if Store.get_next == "" do
+                Store.set_next(List.first(users))
+              end
+
+              Store.set_users(new_cycle)
+          end
+
 
         { :remove, users } ->
-          current_cycle = Store.get
-          new_cycle = Cycle.remove_user(users, current_cycle)
-          Store.set(new_cycle)
+          [old_cycle, trash_du] = Store.get
+          new_cycle = Cycle.remove_user(users, old_cycle)
 
-          send_message(":loudspeaker: <@#{message.user}> has `quit` to the cycle :wave:", message.channel, slack)
+          if Map.equal?(old_cycle, new_cycle) do
+
+            send_message(Formatter.nothing_change_message, message.channel, slack)
+          else
+
+            msgGlobal = "#{Formatter.inline_list_user(users)} `quitted` to the cycle :wave:"
+            msgNext = ""
+
+            # skip to the next user if remove users in next to take out
+            if Enum.member?(users, trash_du) do
+              {id, _} = [old_cycle, trash_du]
+                        |> Cycle.next_on_list
+
+              msgNext = "#{Formatter.format_user(id)} is now on duty :gift:"
+              Store.set_next(id)
+            end
+
+            # send to all uesrs msg
+            broadcast_users(
+              "#{msgGlobal}\n#{msgNext}",
+              Map.put_new(old_cycle, message.user, ""),
+              slack
+            )
+
+            # if no one on list no next
+            if Enum.empty?(new_cycle) do
+              Store.set_next("")
+            end
+
+            # write new cycle
+            Store.set_users(new_cycle)
+          end
 
         { :list, _ } ->
           Store.get
-          # |> ids_to_users_names(slack)
           |> Formatter.list_message()
           |> send_message(message.channel, slack)
+
+        { :skip, _ } ->
+          [user_list, trash_du] = Store.get
+          {id, _} = [user_list, trash_du]
+                    |> Cycle.next_on_list
+                    Store.set_next(id)
+
+          broadcast_users(
+            "#{Formatter.format_user(message.user)} `skiped` the turn of #{Formatter.format_user(trash_du)}.\n #{Formatter.format_user(id)} is now on duty :gift:",
+            Map.put_new(user_list, message.user, ""),
+            slack
+          )
 
         { :not_a_command, _ } ->
           Formatter.not_a_command_message
@@ -60,39 +112,54 @@ defmodule TrashDuty.Slack do
   end
   def handle_event(_, _, state), do: {:ok, state}
 
-  def handle_info({:message, text, channel}, slack, state) do
-    IO.puts "Sending your message, captain!"
+  def handle_info({:message_user, text, user}, slack, state) do
 
-    send_message(text, channel, slack)
+    channel_user = slack.ims
+    |> Enum.filter(
+      fn({_, im}) ->
+        im.user == user
+      end
+    )
+    |> List.first
+    |> elem(1)
+    |> Map.get(:id)
+
+    send_message(text,  channel_user, slack)
+
     {:ok, state}
   end
 
   def handle_info(_, _, state), do: {:ok, state}
 
-  defp ids_to_users_names(list, slack) do
-    Slack.Web.Users.list(%{token: slack.token})
-    |> Map.get("members")
-    |> Enum.filter(&user_in_list?(list, &1))
-    |> Enum.map(&get_display_name(&1))
+  defp broadcast_users(message, users, slack) do
+
+    # current_im = Slack.Web.Im.list(%{token: slack.token})
+                 # |> Map.get("ims")
+                 # |> Enum.map(fn elem ->  elem["user"]  end)
+    # IO.inspect (users |> Map.keys) -- current_im
+    # Slack.Web.Im.list(%{token: slack.token}) |> IO.inspect
+    # # open channel im
+    # (users |> Map.keys) -- current_im
+    # |> Enum.each(
+      # fn(user) ->
+        # Slack.Web.Im.open(user, %{token: slack.token})
+      # end
+    # )
+
+    slack.ims
+    |> Enum.filter(
+      fn({_, im}) ->
+        Map.has_key?(users, im.user)
+      end
+    )
+    |> Enum.each(
+      fn({_, im}) ->
+        send_message(":loudspeaker: " <> message, im.id, slack)
+      end
+    )
   end
 
-  defp user_in_list?(list, user), do: Map.has_key?(list, user["id"])
-
-  defp get_display_name(users_list) do
-    users_list["profile"]["display_name"]
-  end
 
   defp is_direct_message?(%{channel: channel}, slack), do: Map.has_key? slack.ims, channel
 
 end
-
-
-# iex(2)> Supervisor.which_children(TrashDuty.Supervisor)
-# [{Slack.Bot, #PID<0.188.0>, :worker, [Slack.Bot]}]
-# iex(3)> send(IEx.Helpers.pid("0.193.0"), {:message, "External message", "C74B102BV"})
-# Sending your message, captain!
-# {:message, "External message", "#trash"}
-
-
-# {:ok, rtm} = Slack.Bot.start_link(Slack, [], "xoxb-242502268980-Y7LsDz3Przax1FdxIsehIFL2")
-# send rtm, {:message, "External message", "#trash"}

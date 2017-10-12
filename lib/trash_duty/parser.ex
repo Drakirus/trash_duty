@@ -7,8 +7,8 @@ defmodule TrashDuty.Parser do
       message =~ ~r/^\s*(add)\s*/ -> :add
       message =~ ~r/^\s*(remove)\s*/ -> :remove
       message =~ ~r/^\s*(list)\s*$/ -> :list
-      message =~ ~r/^\s*(when)\s*/ -> :when
       message =~ ~r/^\s*(help)\s*$/ -> :help
+      message =~ ~r/^\s*(skip)\s*$/ -> :skip
       true -> :not_a_command
     end
 

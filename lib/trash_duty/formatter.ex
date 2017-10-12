@@ -1,6 +1,7 @@
 defmodule TrashDuty.Formatter do
 
-  def help_message(user) do
+
+  def help_message() do
     """
     *Usage*:
       - `add` -> add yourself to the list
@@ -9,6 +10,13 @@ defmodule TrashDuty.Formatter do
       - `remove [List of user]`
       - `help`: Prints this message
       - `list`: List the cuurent users added
+      - `skip`: skip to the next 'take the trash out' user
+    """
+  end
+
+  def notify_trash_out_msg() do
+    """
+    :grey_exclamation: it's your turn to `take the trash out` :poop:
     """
   end
 
@@ -18,17 +26,41 @@ defmodule TrashDuty.Formatter do
     """
   end
 
-  def list_message([]) do
-    "*No User* :sweat_smile:"
+  def list_message([list, current]) do
+    if Enum.empty?(list) do
+      "*No User* :sweat_smile:"
+    else
+      """
+      *Users*
+      #{
+        list
+        |> Enum.map(
+          fn({id, email}) ->
+            [email, id]
+          end
+        )
+        |> Enum.sort(&TrashDuty.Cycle.cmp_email(hd(&1), hd(&2)))
+        |> Enum.map(
+          fn([_, id]) ->
+            "  • #{format_user(id)} #{if id == current, do: ":poop:"}\n"
+          end
+        )
+      }
+      """
+    end
   end
 
-  def list_message(list) do
-    """
-    *Users*
-    #{Enum.map(list, fn({id, _}) ->
-      "  • <@#{id}>\n"
-    end)}
-    """
+  def inline_list_user(users) do
+    Enum.map_join(users, ", ", fn(user) -> "#{format_user(user)}"end)
+
+  end
+
+  def nothing_change_message() do
+    ":thinking_face: nothing changes"
+  end
+
+  def format_user(user) do
+    "<@#{user}>"
   end
 
 end

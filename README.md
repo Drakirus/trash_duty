@@ -1,21 +1,18 @@
 # TrashDuty
 
-**TODO: Add description**
+First try at a real world project made in Elixir and functional programing.  
 
-## Installation
+Used to alert a **Slack** user of a list when it is there turn to take the trash out
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `trash_duty` to your list of dependencies in `mix.exs`:
+[Config example](config/config.exs)
 
-```elixir
-def deps do
-  [
-    {:trash_duty, "~> 0.1.0"}
-  ]
-end
-```
+> Note the list skip to the next user based on the cmp_email fonction [here](lib/trash_duty/cycle.ex)
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/trash_duty](https://hexdocs.pm/trash_duty).
-
+*Usage*:
+ - `add` -> add yourself to the list
+ - `add [List of user]` ->  add multiple user
+ - `remove`
+ - `remove [List of user]`
+ - `help`: Prints this message
+ - `list`: List the cuurent users added
+ - `skip`: skip to the next 'take the trash out' user
