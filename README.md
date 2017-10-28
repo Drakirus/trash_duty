@@ -2,7 +2,7 @@
 
 First try at a real world project made in `Elixir` and a functional programing language.  
 
-Used to alert a **Slack** user, when it is there turn to take the trash out
+Used to alert a **Slack** user, when it is their turn to take the trash out
 
 [Config example](config/config.exs)
 
